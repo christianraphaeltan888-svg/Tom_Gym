@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>TomGym</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body {
+      font-family: Arial;
+      background: #0b0b0b;
+      color: #fff;
+      padding: 20px;
+    }
+
+    h2 { color: #00ff88; }
+
+    input, button, select {
+      padding: 12px;
+      margin: 5px 0;
+      width: 100%;
+      border-radius: 8px;
+      border: none;
+    }
+
+    input, select {
+      background: #1a1a1a;
+      color: #fff;
+    }
+
+    button {
+      background: #00ff88;
+      font-weight: bold;
+      cursor: pointer;
+    }
+
+    .item {
+      background: #1a1a1a;
+      padding: 10px;
+      margin-top: 10px;
+      border-left: 4px solid #00ff88;
+    }
+
+    button.small {
+      width: auto;
+      margin-right: 5px;
+      background: #333;
+      color: #fff;
+    }
+  </style>
+</head>
+<body>
+
+<h2>🏋️ TomGym</h2>
+
+<input type="date" id="date">
+<input type="text" id="exercise" placeholder="Latihan (Bench Press)">
+<input type="number" id="weight" placeholder="Beban (kg)">
+<input type="number" id="reps" placeholder="Reps">
+<button onclick="save()">Simpan</button>
+
+<hr>
+
+<input type="text" id="search" placeholder="Cari latihan..." oninput="searchExercise()">
+<div id="maxResult"></div>
+
+<select id="monthFilter" onchange="render()"></select>
+
+<h3>📅 Riwayat</h3>
+<div id="list"></div>
+
+<canvas id="chart"></canvas>
+
+<script>
+let data = JSON.parse(localStorage.getItem("tomgym")) || [];
+let editIndex = null;
+
+function save(){
+  let item = {
+    date: date.value,
+    exercise: exercise.value,
+    weight: parseFloat(weight.value),
+    reps: parseInt(reps.value)
+  };
+
+  if(!item.date || !item.exercise || !item.weight || !item.reps){
+    alert("Isi semua data!");
+    return;
+  }
+
+  if(editIndex !== null){
+    data[editIndex] = item;
+    editIndex = null;
+  } else {
+    data.push(item);
+  }
+
+  localStorage.setItem("tomgym", JSON.stringify(data));
+  render();
+}
+
+function editData(i){
+  let d = data[i];
+  date.value = d.date;
+  exercise.value = d.exercise;
+  weight.value = d.weight;
+  reps.value = d.reps;
+  editIndex = i;
+}
+
+function deleteData(i){
+  if(confirm("Hapus data ini?")){
+    data.splice(i,1);
+    localStorage.setItem("tomgym", JSON.stringify(data));
+    render();
+  }
+}
+
+function render(){
+  let list = document.getElementById("list");
+  list.innerHTML = "";
+
+  let month = monthFilter.value;
+
+  let filtered = data.filter(d => {
+    if(!month) return true;
+    return d.date.startsWith(month);
+  });
+
+  filtered.forEach((d,i) => {
+    list.innerHTML += `
+      <div class="item">
+        <b>${d.date}</b><br>
+        ${d.exercise}<br>
+        ${d.weight}kg x ${d.reps}<br><br>
+        <button class="small" onclick="editData(${i})">Edit</button>
+        <button class="small" onclick="deleteData(${i})">Hapus</button>
+      </div>
+    `;
+  });
+
+  updateChart(filtered);
+  updateMonths();
+}
+
+function updateMonths(){
+  let months = [...new Set(data.map(d => d.date.slice(0,7)))];
+  monthFilter.innerHTML = `<option value="">Semua Bulan</option>` +
+    months.map(m => `<option value="${m}">${m}</option>`).join("");
+}
+
+function searchExercise(){
+  let keyword = search.value.toLowerCase();
+  let filtered = data.filter(d => d.exercise.toLowerCase().includes(keyword));
+
+  if(filtered.length === 0){
+    maxResult.innerHTML = "Tidak ditemukan";
+    return;
+  }
+
+  let max = Math.max(...filtered.map(d => d.weight));
+  maxResult.innerHTML = `🔥 PR Beban Tertinggi: ${max} kg`;
+}
+
+let chart;
+
+function updateChart(filtered){
+  let grouped = {};
+
+  filtered.forEach(d => {
+    if(!grouped[d.date]) grouped[d.date] = 0;
+    grouped[d.date] = Math.max(grouped[d.date], d.weight);
+  });
+
+  let labels = Object.keys(grouped);
+  let values = Object.values(grouped);
+
+  if(chart) chart.destroy();
+
+  chart = new Chart(document.getElementById("chart"), {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [{
+        label: 'Progress Beban',
+        data: values,
+        borderColor: '#00ff88',
+        backgroundColor: '#00ff8844'
+      }]
+    }
+  });
+}
+
+render();
+</script>
+
+</body>
+</html>
