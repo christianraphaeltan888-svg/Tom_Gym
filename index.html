@@ -2,64 +2,95 @@
 <html>
 <head>
   <title>TomGym</title>
+
+  <!-- PWA -->
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#00ff88">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <!-- iOS support -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
   <style>
     body {
-      font-family: Arial;
+      font-family: -apple-system, BlinkMacSystemFont, sans-serif;
       background: #0b0b0b;
       color: #fff;
-      padding: 20px;
-      max-width: 600px;
-      margin: auto;
+      margin: 0;
+      padding: 15px;
     }
 
-    h2 { color: #00ff88; }
-
-    input, button, select {
-      padding: 12px;
-      margin: 5px 0;
-      width: 100%;
-      border-radius: 8px;
-      border: none;
-      box-sizing: border-box;
+    .title {
+      color: #00ff88;
+      font-size: 28px;
+      font-weight: bold;
+      margin-bottom: 15px;
     }
 
     input, select {
-      background: #1a1a1a;
+      width: 100%;
+      padding: 14px;
+      margin: 8px 0;
+      border-radius: 12px;
+      border: none;
+      background: #161616;
       color: #fff;
+      font-size: 15px;
     }
 
     button {
+      width: 100%;
+      padding: 15px;
+      margin-top: 10px;
+      border-radius: 12px;
+      border: none;
       background: #00ff88;
       font-weight: bold;
-      cursor: pointer;
+      font-size: 16px;
+      color: #000;
+    }
+
+    button:active {
+      transform: scale(0.97);
+    }
+
+    h3 {
+      margin-top: 25px;
+      color: #00ff88;
+      font-size: 20px;
     }
 
     .item {
-      background: #1a1a1a;
-      padding: 10px;
+      background: #161616;
+      padding: 15px;
       margin-top: 10px;
-      border-left: 4px solid #00ff88;
+      border-radius: 12px;
     }
 
     button.small {
       width: auto;
+      padding: 8px 12px;
       margin-right: 5px;
-      background: #333;
+      margin-top: 10px;
+      background: #2a2a2a;
       color: #fff;
+      font-size: 13px;
     }
 
-    h3 {
-      margin-top: 20px;
-      color: #00ff88;
+    hr {
+      border: none;
+      border-top: 1px solid #222;
+      margin: 20px 0;
     }
   </style>
 </head>
 
 <body>
 
-<h2>🏋️ TomGym</h2>
+<h2 class="title">🏋️ TomGym</h2>
 
 <input type="date" id="date">
 <input type="text" id="exercise" placeholder="Latihan (Bench Press)">
@@ -97,7 +128,6 @@ let data = JSON.parse(localStorage.getItem("tomgym")) || [];
 let editIndex = null;
 let chart;
 
-// ambil element global
 let date = document.getElementById("date");
 let exercise = document.getElementById("exercise");
 let weight = document.getElementById("weight");
@@ -233,14 +263,11 @@ function updateStats(){
 }
 
 function updateChart(filtered){
-
   let selectedExercise = exerciseFilter.value;
   let range = parseInt(rangeFilter.value);
-
   let now = new Date();
 
   let filteredData = filtered.filter(d => {
-
     if(selectedExercise && d.exercise !== selectedExercise){
       return false;
     }
@@ -280,6 +307,11 @@ function updateChart(filtered){
 }
 
 render();
+
+// REGISTER SERVICE WORKER
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.register("sw.js");
+}
 </script>
 
 </body>
