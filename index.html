@@ -3,12 +3,15 @@
 <head>
   <title>TomGym</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
   <style>
     body {
       font-family: Arial;
       background: #0b0b0b;
       color: #fff;
       padding: 20px;
+      max-width: 600px;
+      margin: auto;
     }
 
     h2 { color: #00ff88; }
@@ -19,6 +22,7 @@
       width: 100%;
       border-radius: 8px;
       border: none;
+      box-sizing: border-box;
     }
 
     input, select {
@@ -45,8 +49,14 @@
       background: #333;
       color: #fff;
     }
+
+    h3 {
+      margin-top: 20px;
+      color: #00ff88;
+    }
   </style>
 </head>
+
 <body>
 
 <h2>🏋️ TomGym</h2>
@@ -64,14 +74,40 @@
 
 <select id="monthFilter" onchange="render()"></select>
 
-<h3>📅 Riwayat</h3>
-<div id="list"></div>
+<h3>📊 Statistik Latihan</h3>
+<div id="stats"></div>
+
+<h3>📊 Chart Progress</h3>
+
+<select id="exerciseFilter" onchange="render()"></select>
+
+<select id="rangeFilter" onchange="render()">
+  <option value="7">1 Minggu</option>
+  <option value="30" selected>1 Bulan</option>
+  <option value="365">1 Tahun</option>
+</select>
 
 <canvas id="chart"></canvas>
+
+<h3>📅 Riwayat</h3>
+<div id="list"></div>
 
 <script>
 let data = JSON.parse(localStorage.getItem("tomgym")) || [];
 let editIndex = null;
+let chart;
+
+// ambil element global
+let date = document.getElementById("date");
+let exercise = document.getElementById("exercise");
+let weight = document.getElementById("weight");
+let reps = document.getElementById("reps");
+let search = document.getElementById("search");
+let maxResult = document.getElementById("maxResult");
+let monthFilter = document.getElementById("monthFilter");
+let stats = document.getElementById("stats");
+let exerciseFilter = document.getElementById("exerciseFilter");
+let rangeFilter = document.getElementById("rangeFilter");
 
 function save(){
   let item = {
@@ -125,6 +161,8 @@ function render(){
     return d.date.startsWith(month);
   });
 
+  updateExerciseFilter();
+
   filtered.forEach((d,i) => {
     list.innerHTML += `
       <div class="item">
@@ -139,12 +177,23 @@ function render(){
 
   updateChart(filtered);
   updateMonths();
+  updateStats();
 }
 
 function updateMonths(){
   let months = [...new Set(data.map(d => d.date.slice(0,7)))];
-  monthFilter.innerHTML = `<option value="">Semua Bulan</option>` +
+
+  monthFilter.innerHTML =
+    `<option value="">Semua Bulan</option>` +
     months.map(m => `<option value="${m}">${m}</option>`).join("");
+}
+
+function updateExerciseFilter(){
+  let ex = [...new Set(data.map(d => d.exercise))];
+
+  exerciseFilter.innerHTML =
+    `<option value="">Semua Gerakan</option>` +
+    ex.map(e => `<option value="${e}">${e}</option>`).join("");
 }
 
 function searchExercise(){
@@ -160,18 +209,56 @@ function searchExercise(){
   maxResult.innerHTML = `🔥 PR Beban Tertinggi: ${max} kg`;
 }
 
-let chart;
+function updateStats(){
+  if(data.length === 0){
+    stats.innerHTML = "Belum ada data";
+    return;
+  }
 
-function updateChart(filtered){
-  let grouped = {};
+  let count = {};
 
-  filtered.forEach(d => {
-    if(!grouped[d.date]) grouped[d.date] = 0;
-    grouped[d.date] = Math.max(grouped[d.date], d.weight);
+  data.forEach(d => {
+    count[d.exercise] = (count[d.exercise] || 0) + 1;
   });
 
-  let labels = Object.keys(grouped);
-  let values = Object.values(grouped);
+  let sorted = Object.entries(count).sort((a,b) => b[1] - a[1]);
+
+  let most = sorted[0];
+  let least = sorted[sorted.length - 1];
+
+  stats.innerHTML = `
+    🥇 <b>Paling sering:</b> ${most[0]} (${most[1]}x)<br>
+    🧊 <b>Paling jarang:</b> ${least[0]} (${least[1]}x)
+  `;
+}
+
+function updateChart(filtered){
+
+  let selectedExercise = exerciseFilter.value;
+  let range = parseInt(rangeFilter.value);
+
+  let now = new Date();
+
+  let filteredData = filtered.filter(d => {
+
+    if(selectedExercise && d.exercise !== selectedExercise){
+      return false;
+    }
+
+    let dateObj = new Date(d.date);
+    let diffDays = (now - dateObj) / (1000 * 60 * 60 * 24);
+
+    return diffDays <= range;
+  });
+
+  let grouped = {};
+
+  filteredData.forEach(d => {
+    grouped[d.date] = Math.max(grouped[d.date] || 0, d.weight);
+  });
+
+  let labels = Object.keys(grouped).sort();
+  let values = labels.map(l => grouped[l]);
 
   if(chart) chart.destroy();
 
@@ -180,10 +267,13 @@ function updateChart(filtered){
     data: {
       labels,
       datasets: [{
-        label: 'Progress Beban',
+        label: selectedExercise ? 
+          `Progress ${selectedExercise}` : 
+          'Progress Beban',
         data: values,
         borderColor: '#00ff88',
-        backgroundColor: '#00ff8844'
+        backgroundColor: '#00ff8844',
+        tension: 0.3
       }]
     }
   });
